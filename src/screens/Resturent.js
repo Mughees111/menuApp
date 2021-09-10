@@ -852,7 +852,7 @@ const Resturent = () => {
                         data={[{ title: "08:00" }]}
                         onValueChange={(t) => {
                             setSameDayStart(t)
-                            // console.log(t)
+                            console.log(t)
                         }}
 
                     />

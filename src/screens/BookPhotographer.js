@@ -76,7 +76,7 @@ const BookPhotographer = (props) => {
     }, [])
 
     function bundleCount() {
-        var tor = [];
+        var tor = []
         for (let i = 1; i <= 20; i++) tor.push({
             title: i
         })

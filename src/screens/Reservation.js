@@ -51,7 +51,7 @@ const Reservation = () => {
         three: false,
     })
 
-    const [filterByTimeAndGuest, setFilterByTimeAndGuest] = useState(false)
+    const [filterByTimeAndGuest, setFilterByTimeAndGuest] = useState(false);
     const [filterByTime, setFilterByTime] = useState('')
     const [filterByGuest, setFilterByGuest] = useState('');
     const [fromDate, setFromDate] = useState('')

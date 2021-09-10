@@ -972,7 +972,7 @@ const MyMenu = () => {
 
                             <Text style={[styles.inputLabel, { marginTop: 20 }]}>Status</Text>
                             <View style={{ marginTop: 10, width: "100%", height: 52, borderRadius: 12, borderWidth: 0.5, borderColor: '#4A5160', flexDirection: 'row', justifyContent: 'space-between',  alignItems: 'center' }}>
-                                <PrivacyPicker
+                                <PrivacyPicker  
                                     selected={{title:'Select'}}
                                     data ={[{title : "Active"},{title : "Inactive"}]}
                                     onValueChange={()=>{}}

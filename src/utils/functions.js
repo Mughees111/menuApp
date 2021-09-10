@@ -226,7 +226,7 @@ async function do_update_dp(url, response, type__, userToken, url_plus) {
                     console.log(final_url)
                     console.log(profile_pic_url)
                     return responseJson
-                    // setUrl(__final__url__);
+                
                     // responseJson.filename is used to send to the server again
                     // responseJson.url is used to display the image to user
 

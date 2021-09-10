@@ -7,7 +7,8 @@ import { StatusBar } from 'expo-status-bar';
 
 const More = (props) => {
 
-    const [orderQrCode, setOrderQrCode] = useState(false)
+    const [orderQrCode, setOrderQrCode] = useState(false);
+    
     const Header = () => (
         <View style={{ alignItems: 'center', flexDirection: 'row', marginTop: 10, paddingHorizontal: 20, width: '100%', borderBottomWidth: 0.5, borderColor: '#818CAA', paddingBottom: 15, }}>
             <MoreIcon style={{ marginTop: 10 }} />
