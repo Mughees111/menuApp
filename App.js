@@ -1,6 +1,5 @@
-import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, SafeAreaView, StyleSheet, Text, View , StatusBar} from 'react-native';
 import { DashboardIcon, MenuBtmIcon, MoreIcon, RestMenuIcon, ResturentBtmIcon } from './src/components/Svgs';
 
 import { createMaterialBottomTabNavigator } from '@react-navigation/material-bottom-tabs';
@@ -19,11 +18,12 @@ import Login from './src/screens/Login';
 
 import { Provider as AuthProvider } from "./src/Context/DataContext";
 import Loader from './src/utils/Loader';
-import { retrieveItem } from './src/utils/functions';
+import { retrieveItem ,storeItem} from './src/utils/functions';
 import { apiRequest } from './src/utils/apiCalls';
 import { urls } from './src/utils/Api_urls';
+import { loggedInObservable } from './Common';
 
-
+import { createStackNavigator } from '@react-navigation/stack';
 
 const BottomTabs = createMaterialBottomTabNavigator();
 const Stack = createNativeStackNavigator()
@@ -94,7 +94,7 @@ function BottomTabNavigator() {
             <MoreIcon style={{ marginTop: -7 }} color={color} />
           )
         }}
-        name="More" component={More} />
+        name="More" component={MoreStack} />
     </BottomTabs.Navigator>
   )
 }
@@ -103,7 +103,7 @@ function BottomTabNavigator() {
 
 export default function App() {
 
-  const [loggined, setLoggined] = useState('2')
+  
   const [loaded] = useFonts({
     PBo: require('./assets/fonts/Poppins/Poppins-Bold.ttf'),
     PRe: require('./assets/fonts/Poppins/Poppins-Regular.ttf'),
@@ -113,62 +113,140 @@ export default function App() {
 
   })
 
-  function checkLogin(token) {
-    apiRequest(urls.API + "check_login")
-      .then(data => {
-        if (data.action == 'success') {
-          setLoggined('1')
-        }
-        else {
-          setLoggined('0')
-        }
+
+
+  const [loggedIn, setLoggedIn] = useState(0)
+    
+    useEffect(()=>{
+
+
+
+        checkLoggedIn()
+        loggedInObservable.subscribe((v)=>{
+            setLoggedIn(v)
+        })
+    },[]);
+
+    const checkLoggedIn = () =>{
+
+      retrieveItem("login_data").then((data)=>{
+          if(data)
+          {
+
+            checkWithServer(data)
+          }
+          else{
+                
+              setLoggedIn(2)
+              
+          }
       })
-  }
+    }
 
-  useEffect(() => {
+    const checkWithServer = (data) =>
+    {
+      
+        
+        if(data)
+            var token = data.token;
+        else
+            var token = "khali";
+        var body_data = {token:token};
+
+        console.log(body_data);
+        
+        fetch(urls.API + 'check_login', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body_data),
+        }).then((response) => response.json())
+        .then((responseJson) => {
+            
+            if (responseJson.action == "success") {
+              
+                storeItem("login_data", responseJson.data).then(() => {
+
+                   setLoggedIn(1)
+                });
+            }
+            else {
+                setLoggedIn(2)
+            }
+        }).catch((error) => {
+            setLoggedIn(2)
+        });
+    }
+   
 
 
-    retrieveItem('login_data')
-      .then((data) => {
-        if (data) {
-          checkLogin(data.token)
-          // setLoggined('1')
-        }
-        else setLoggined('0')
+	if(loggedIn==0 || !loaded)
+	{
+        console.log("Did come here")
+		return (
+			<View style={{
+				flex: 1,
+				alignItems: 'center',
+				backgroundColor: '#f7f7f7'
+			}}>
+				<Image source={require("./assets/splash.png")} style={{width:'100%', height:'100%'}} />
+			</View>
+		);
+	}
 
-      })
-  })
 
-
-
-  if (!loaded) return null
-  if (loggined == '2') {
+  const AuthStack = createStackNavigator()
+  const AuthStackNavigator = ({navigation,routes})=> {
     return (
-      <Loader />
+      <AuthStack.Navigator
+        screenOptions={{
+          headerShown: false,
+          gestureEnabled: true,
+        }}
+      >
+       
+         <AuthStack.Screen
+          name="Login"
+          component={Login}
+          options={{
+            headerShown: false,
+          }}
+        />
+       
+      </AuthStack.Navigator>
     )
   }
+  
+
+
+
+  
   return (
-    <AuthProvider>
-      <NavigationContainer>
+    <View style={{flex:1,backgroundColor:"#fff"}}>
+    <StatusBar hidden={false} barStyle={"dark-content"} backgroundColor="#fff" />
+    <SafeAreaView style={{ backgroundColor: '#fff',flex:1 }}>
+      <AuthProvider>
+        <NavigationContainer>
+          
 
-        {loggined == '0' ?
-          (
-            <Stack.Navigator screenOptions={{ headerShown: false }} >
-              <Stack.Screen name="Login" component={Login} />
-              <Stack.Screen name="BottomTabNavigator" component={BottomTabNavigator} />
-              <Stack.Screen name="MoreStack" component={MoreStack} />
-            </Stack.Navigator>
-          )
-          : (
-            <Stack.Navigator screenOptions={{ headerShown: false }} >
-              <Stack.Screen name="BottomTabNavigator" component={BottomTabNavigator} />
-              <Stack.Screen name="MoreStack" component={MoreStack} />
-            </Stack.Navigator>
-          )
-        }
+              <Stack.Navigator screenOptions={{ headerShown: false }} >
 
-      </NavigationContainer>
-    </AuthProvider>
+                {
+                  loggedIn==2?
+                  <Stack.Screen options={{ headerShown: false }} name="Auth" component={AuthStackNavigator} />
+                  :
+                  <Stack.Screen name="BottomTabNavigator" component={BottomTabNavigator} />
+                }
+                
+              </Stack.Navigator>
+        
+
+        </NavigationContainer>
+      </AuthProvider>
+    </SafeAreaView>
+    </View>
   );
 }
 

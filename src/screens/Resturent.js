@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useContext, useCallback } from 'react'
-import { View, Text, SafeAreaView, TouchableOpacity, Image, Dimensions, StyleSheet, ScrollView, FlatList, Switch, TextInput } from 'react-native'
+import { View, Text, SafeAreaView, TouchableOpacity, Image, Dimensions, StyleSheet, ScrollView, FlatList, Switch, TextInput, Platform } from 'react-native'
 import { ArrowDown, CloseIcon, TickIcon, EditIcon, EyeIcon, FilterIcon, PersonIcon, PersonIconSmall, PlusSmall, RestMenuIcon, ResturentBtmIcon, ShareIcon, TrashIcon } from '../components/Svgs'
 
-import { StatusBar } from 'expo-status-bar';
 import Modal from 'react-native-modal';
 
 import { Context } from '../Context/DataContext';
@@ -14,7 +13,8 @@ import { retrieveItem, storeItem, update_dp, update_dp_2 } from '../utils/functi
 import { urls } from '../utils/Api_urls';
 import PrivacyPicker from '../components/PrivacyPicker';
 import { TimePicker } from '../components/TimePicker';
-
+import { useFocusEffect } from '@react-navigation/core';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 
 
@@ -25,14 +25,19 @@ const useForceUpdate = () => {
     return useCallback(() => updateState({}), []);
 }
 
-
+var firstTime = true
 var dropDownAlertRef;
+var x = new Date();
+var toTimeIndex = 1;
+var toTimeIndexStart = true;
+var nonIndexedObjectName = "monday";
+var tableIndex = 0;
+var editingTable = false;
 
 const Resturent = () => {
 
     const forceUpdate = useForceUpdate()
-    const { state, setLogindataGlobal } = useContext(Context);
-    const userData = state.loginData
+   
     const [loading, setLoading] = useState(false)
     const [outsideDining, setOutsideDining] = useState(true);
     const [sameEveryDay, setSameEveryDay] = useState(true);
@@ -43,13 +48,37 @@ const Resturent = () => {
     const [editOverViewImages, setEditOverViewImages] = useState(false)
     const [editHours, setEditHours] = useState(false)
     const [sameDaysArr, setSameDaysArr] = useState([]);
-    const [sameDayStart, setSameDayStart] = useState('');
-    const [sameDayEnd, setSameDayEnd] = useState('');
+
+    const [sameDayStart, setSameDayStart] = useState("");
+    const [sameDayEnd, setSameDayEnd] = useState("");
+
     const [editTable, setEditTable] = useState(false)
     const [editTableId, setEditTableId] = useState()
 
     const [imgsUrlForUpload, setImgsUrlForUpload] = useState([]);
     const [imgsUrlToShow, setImgsUrlToShow] = useState([]);
+    const [timeModal, setTimetModal] = useState(false);
+
+    const [user, setUser] = React.useState({})
+    useFocusEffect(React.useCallback(() => {
+        reloadLocal()
+    }, []))
+
+
+    const reloadLocal = ()=>{
+        retrieveItem("login_data").then((data) => {
+            setUser(data);
+        })
+    }
+
+    useEffect(()=>{
+        if(user && user?.token!=undefined && firstTime)
+        {
+            firstTime=false;
+            
+        }
+        setLoading(false)
+    },[user])
 
     const [addTableV, setAddTableV] = useState({
         title: '',
@@ -100,36 +129,36 @@ const Resturent = () => {
 
     function doChangeOrderSettings() {
         var x = dropDownAlertRef;
-        if (!changeOrderSetting.floors && !changeOrderSetting.waiter_call && !changeOrderSetting.outside_dinning) {
-            x.alertWithType("error", "Error", "Please update at least one");
-            return
-        }
+        // if (!changeOrderSetting.floors && !changeOrderSetting.waiter_call && !changeOrderSetting.outside_dinning) {
+        //     x.alertWithType("error", "Error", "Please update at least one");
+        //     return
+        // }
         var floors;
         var waiter_call;
         var outside_dinning;
-        if (!changeOrderSetting.floors) { floors = userData.floors }
-        else { floors = changeOrderSetting.floors }
+        // if (!changeOrderSetting.floors) { floors = user.floors }
+        // else { floors = changeOrderSetting.floors }
 
 
-        if (!changeOrderSetting.outside_dinning) { outside_dinning = userData.outside_dinning }
-        else { outside_dinning = changeOrderSetting.outside_dinning }
+        // if (!changeOrderSetting.outside_dinning) { outside_dinning = user.outside_dinning }
+        // else { outside_dinning = changeOrderSetting.outside_dinning }
 
-        if (!changeOrderSetting.waiter_call) { waiter_call = userData.waiter_call }
-        else { waiter_call = changeOrderSetting.waiter_call }
+        // if (!changeOrderSetting.waiter_call) { waiter_call = user.waiter_call }
+        // else { waiter_call = changeOrderSetting.waiter_call }
 
         setLoading(true)
         const chngObj = {
-            token: userData.token,
-            floors,
-            waiter_call,
-            outside_dinning
+            token: user.token,
+            floors:user?.floors,
+            waiter_call:user?.waiter_call,
+            outside_dinning:user?.outside_dinning
         }
         apiRequest(chngObj, "update_order_details")
             .then(data => {
                 if (data.action == 'success') {
                     storeItem("login_data", data.data)
                         .then((v) => {
-                            setLogindataGlobal()
+                            reloadLocal()
                         })
                     setLoading(false)
                     setEditOrderSetting(false)
@@ -151,7 +180,7 @@ const Resturent = () => {
         var x = dropDownAlertRef;
         setLoading(true)
         const delImgObj = {
-            token: userData.token,
+            token: user.token,
             id: id
         }
         apiRequest(delImgObj, "remove_image")
@@ -159,7 +188,7 @@ const Resturent = () => {
                 if (data.action == 'success') {
                     storeItem("login_data", data.data)
                         .then((v) => {
-                            setLogindataGlobal()
+                            reloadLocal()
                         })
                     setLoading(false)
                     x.alertWithType("success", "Success", "Image Removed");
@@ -177,36 +206,36 @@ const Resturent = () => {
 
     function doChangeOverViewSettings() {
         var x = dropDownAlertRef;
-        if (!changeOverViewSetting.address && !changeOverViewSetting.phone && !changeOverViewSetting.description && !changeOverViewSetting.sub_title) {
-            x.alertWithType("error", "Error", "Please update at least one");
-            return
-        }
+        // if (!changeOverViewSetting.address && !changeOverViewSetting.phone && !changeOverViewSetting.description && !changeOverViewSetting.sub_title) {
+        //     x.alertWithType("error", "Error", "Please update at least one");
+        //     return
+        // }
 
         var address;
         var phone;
         var description;
         var sub_title;
-        if (!changeOverViewSetting.address) { address = userData.address }
-        else { address = changeOverViewSetting.address }
+        // if (!changeOverViewSetting.address) { address = user.address }
+        // else { address = changeOverViewSetting.address }
 
-        if (!changeOverViewSetting.phone) { phone = userData.phone }
-        else { phone = changeOverViewSetting.phone }
+        // if (!changeOverViewSetting.phone) { phone = user.phone }
+        // else { phone = changeOverViewSetting.phone }
 
-        if (!changeOverViewSetting.description) { description = userData.description }
-        else { description = changeOverViewSetting.description }
+        // if (!changeOverViewSetting.description) { description = user.description }
+        // else { description = changeOverViewSetting.description }
 
-        if (!changeOverViewSetting.sub_title) { sub_title = userData.sub_title }
-        else { sub_title = changeOverViewSetting.sub_title }
+        // if (!changeOverViewSetting.sub_title) { sub_title = user.sub_title }
+        // else { sub_title = changeOverViewSetting.sub_title }
 
-        if (!changeOverViewSetting.description) { description = userData.description }
-        else { description = changeOverViewSetting.description }
+        // if (!changeOverViewSetting.description) { description = user.description }
+        // else { description = changeOverViewSetting.description }
 
         const chngObj = {
-            token: userData.token,
-            address,
-            phone,
-            sub_title,
-            description
+            token: user.token,
+            address:user.address,
+            phone:user.phone,
+            sub_title:user.sub_title,
+            description:user.description
         }
         setLoading(true)
 
@@ -215,11 +244,12 @@ const Resturent = () => {
                 if (data.action == 'success') {
                     storeItem("login_data", data.data)
                         .then((v) => {
-                            setLogindataGlobal()
+                            reloadLocal();
+                            setLoading(false)
+                            setResEdit(false)
+                            x.alertWithType("success", "Success", "Overview Updated");
                         })
-                    setLoading(false)
-                    setResEdit(false)
-                    x.alertWithType("success", "Success", "Overview Updated");
+                   
 
                 }
                 else {
@@ -237,7 +267,7 @@ const Resturent = () => {
     }
 
     function cameraUplaod() {
-        update_dp_2(1, userData.token, "public_image")
+        update_dp_2(1, user.token, "public_image")
             .then(data => {
                 console.log(data)
             })
@@ -247,7 +277,7 @@ const Resturent = () => {
 
         var x = dropDownAlertRef;
         setLoading(true)
-        update_dp(1, userData.token, "public_image")
+        update_dp(1, user.token, "public_image")
             .then(data => {
                 setLoading(false)
                 console.log('data2 = ')
@@ -279,7 +309,7 @@ const Resturent = () => {
             return
         }
         const imgObj = {
-            token: userData.token,
+            token: user.token,
             images: imgsUrlForUpload
         }
         apiRequest(imgObj, "add_images")
@@ -287,7 +317,7 @@ const Resturent = () => {
                 if (data.action == 'success') {
                     storeItem("login_data", data.data)
                         .then((v) => {
-                            setLogindataGlobal()
+                            reloadLocal()
                         })
                     setLoading(false)
                     setEditOverViewImages(false)
@@ -306,7 +336,7 @@ const Resturent = () => {
     }
 
     function setHoursForSameEveryDay(value, start, end) {
-        setLoading(true)
+        // setLoading(true)
         var x = dropDownAlertRef;
         var hoursObj = {}
         var temp;
@@ -322,14 +352,49 @@ const Resturent = () => {
                 hoursObj[temp] = 0
             }
         }
-        hoursObj["token"] = userData.token
+        hoursObj["token"] = user.token
+        var myLogicHours = {
 
-        apiRequest(hoursObj, "update_hours")
+            monday: !sameEveryDay ? user.monday : sameDaysArr.includes("monday") ? 1 :0,
+            monday_start: !sameEveryDay ? user.monday_start: sameDayStart,
+            monday_end: !sameEveryDay ? user.monday_end: sameDayEnd,
+
+            tuesday: !sameEveryDay ? user.tuesday: sameDaysArr.includes("tuesday") ? 1 :0,
+            tuesday_start: !sameEveryDay ? user.tuesday_start: sameDayStart,
+            tuesday_end: !sameEveryDay ? user.tuesday_end: sameDayEnd,
+
+            wednesday: !sameEveryDay ? user.wednesday: sameDaysArr.includes("wednesday") ? 1 :0,
+            wednesday_start: !sameEveryDay ? user.wednesday_start: sameDayStart,
+            wednesday_end: !sameEveryDay ? user.wednesday_end: sameDayEnd,
+
+            thursday: !sameEveryDay ? user.thursday: sameDaysArr.includes("thursday") ? 1 :0,
+            thursday_start: !sameEveryDay ? user.thursday_start: sameDayStart,
+            thursday_end: !sameEveryDay ? user.thursday_end: sameDayEnd,
+
+            friday: !sameEveryDay ? user.friday: sameDaysArr.includes("friday") ? 1 :0,
+            friday_start: !sameEveryDay ? user.friday_start: sameDayStart,
+            friday_end: !sameEveryDay ? user.friday_end: sameDayEnd,
+
+            saturday: !sameEveryDay ? user.saturday: sameDaysArr.includes("saturday") ? 1 :0,
+            saturday_start: !sameEveryDay ? user.saturday_start: sameDayStart,
+            saturday_end: !sameEveryDay ? user.saturday_end: sameDayEnd,
+
+            sunday: !sameEveryDay ? user.sunday: sameDaysArr.includes("sunday") ? 1 :0,
+            sunday_start: !sameEveryDay ? user.sunday_start: sameDayStart,
+            sunday_end: !sameEveryDay ? user.sunday_end: sameDayEnd,
+
+            token: user?.token,
+             
+            sameEveryDay: sameEveryDay ? 1 : 0
+        }
+        console.log(myLogicHours);
+
+        apiRequest(myLogicHours, "update_hours")
             .then(data => {
                 if (data.action == 'success') {
                     storeItem("login_data", data.data)
                         .then((v) => {
-                            setLogindataGlobal()
+                            reloadLocal()
                         })
                     setEditHours(false)
                     setLoading(false)
@@ -387,7 +452,7 @@ const Resturent = () => {
         }
         setLoading(true)
         const addTableObj = {
-            token: userData.token,
+            token: user.token,
             title: addTableV.title,
             table_id: addTableV.table_id,
             capacity: addTableV.capacity,
@@ -397,8 +462,8 @@ const Resturent = () => {
             .then(data => {
                 if (data.action == 'success') {
                     storeItem("login_data", data.data)
-                        .then((v) => {
-                            setLogindataGlobal()
+                        .then(() => {
+                            reloadLocal()
                         })
                     setLoading(false)
                     setAddtable(false)
@@ -420,48 +485,40 @@ const Resturent = () => {
     function doEditTable() {
 
         var x = dropDownAlertRef;
-        if (editTableV.title === addTableV.title &&
-            editTableV.capacity === addTableV.capacity &&
-            editTableV.location === addTableV.location &&
-            editTableV.table_id === addTableV.table_id
-        ) {
-            x.alertWithType("error", "Error", "Please update at least one");
-            return
-        }
-        else {
+            var cTable = user?.tables[tableIndex]
 
-            if (editTableV.title.length < 3) {
+            if (cTable.title.length < 3) {
                 x.alertWithType("error", "Error", "Invalid table name");
                 return
             }
-            if (!editTableV.table_id) {
+            if (!cTable.table_id) {
                 x.alertWithType("error", "Error", "Please enter a valid table id");
                 return
             }
-            if (!editTableV.capacity) {
+            if (!cTable.capacity) {
                 x.alertWithType("error", "Error", "Capacity is required");
                 return
             }
-            if (!editTableV.location) {
+            if (!cTable.location) {
                 x.alertWithType("error", "Error", "Location is required");
                 return
             }
 
             setLoading(true)
             const editTableObj = {
-                token: userData.token,
-                title: editTableV.title,
-                table_id: editTableV.table_id,
-                capacity: editTableV.capacity,
-                location: editTableV.location,
-                id: editTableId
+                token: user.token,
+                title: cTable.title,
+                table_id: cTable.table_id,
+                capacity: cTable.capacity,
+                location: cTable.location,
+                id: cTable.id
             }
             apiRequest(editTableObj, "update_table")
                 .then(data => {
                     if (data.action == 'success') {
                         storeItem("login_data", data.data)
-                            .then((v) => {
-                                setLogindataGlobal()
+                            .then(() => {
+                                reloadLocal()
                             })
                         setLoading(false)
                         setEditTable(false)
@@ -478,19 +535,18 @@ const Resturent = () => {
                     x.alertWithType("error", "Error", "Internet Error");
                     setEditTable(false)
                 })
-        }
     }
 
     function doEnableDisableTable(id) {
 
         var x = dropDownAlertRef;
 
-        apiRequest({ token: userData.token, id: id }, "disable_enable_table")
+        apiRequest({ token: user.token, id: id }, "disable_enable_table")
             .then(data => {
                 if (data.action == 'success') {
                     storeItem("login_data", data.data)
                         .then((v) => {
-                            setLogindataGlobal()
+                            reloadLocal()
                         })
                     setLoading(false)
                     x.alertWithType("success", "Success", "Table Updated");
@@ -506,11 +562,32 @@ const Resturent = () => {
                 x.alertWithType("error", "Error", "Internet Error");
             })
     }
+    function formatTime(date)
+    {
+        var date = new Date(date);
+
+        
+        var hours = date.getHours();
+        var minutes = date.getMinutes();
+        var seconds = date.getSeconds();
+
+        if(hours<10) hours ="0"+ hours;
+        if(minutes<10) minutes ="0"+ minutes;
+        if(seconds<10) seconds ="0"+ seconds;
+
+        var am = " am";
+        if(hours>12)
+        {
+            hours = hours-12;
+            am = " pm";
+        }
 
 
-    useEffect(() => {
-        console.log(userData)
-    }, [])
+        return hours+":"+minutes + am;
+    }
+
+
+   
 
 
     const toggleSwitch = () => setSameEveryDay(previousState => !previousState);
@@ -538,10 +615,10 @@ const Resturent = () => {
 
 
     const EditOrderSettingView = () => (
-        <View style={{ width: "100%", }}>
+        <View style={{ width: "100%",borderColor: '#E3E3E3', borderRadius: 16, borderWidth: 1, marginTop: 15,overflow:"hidden",paddingBottom:15 }}>
             <TouchableOpacity
                 onPress={() => { doChangeOrderSettings() }}
-                style={{ width: "100%", marginTop: 15, paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 20, paddingHorizontal: 10, backgroundColor: '#FCF5EA', }}>
+                style={{ width: "100%",  paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 20, paddingHorizontal: 10, backgroundColor: '#FCF5EA', }}>
                 <Text style={{ fontFamily: 'PSBo', fontSize: 16, color: '#4A5160' }}>Order settings</Text>
                 <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#54C2BB' }}>Save Settings</Text>
             </TouchableOpacity>
@@ -566,13 +643,13 @@ const Resturent = () => {
                 </TouchableOpacity> */}
 
 
-                <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA', marginTop: 15 }}>Floor</Text>
+                <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA', marginTop: 15 }}>Floors</Text>
                 <TextInput
-                    placeholder={userData?.floors}
+                    value={user?.floors}
                     style={styles.addTableInput}
                     onChangeText={(v) => {
-                        setChangeOrderSetting({
-                            ...changeOrderSetting,
+                        setUser({
+                            ...user,
                             floors: v
                         })
                     }}
@@ -583,18 +660,18 @@ const Resturent = () => {
                 <View style={{ marginTop: 10, paddingHorizontal: 10, width: "100%", height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#818CAA', alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
                     <PrivacyPicker
                         data={[{ title: "Yes", }, { title: "No" }]}
-                        selected={{ title: changeOrderSetting.waiter_call ? changeOrderSetting.waiter_call == "1" ? "Yes" : "No" : userData?.waiter_call == "1" ? "Yes" : "No" }}
+                        selected={{ title: user.waiter_call == "1" ? "Yes" : "No"  }}
                         onValueChange={(index, title) => {
                             console.log(title)
                             if (title.title == "Yes") {
-                                setChangeOrderSetting({
-                                    ...changeOrderSetting,
+                                setUser({
+                                    ...user,
                                     waiter_call: '1'
                                 })
                             }
                             else {
-                                setChangeOrderSetting({
-                                    ...changeOrderSetting,
+                                setUser({
+                                    ...user,
                                     waiter_call: '0'
                                 })
                             }
@@ -607,8 +684,8 @@ const Resturent = () => {
                     <TouchableOpacity
                         onPress={() => {
                             setOutsideDining(true)
-                            setChangeOrderSetting({
-                                ...changeOrderSetting,
+                            setUser({
+                                ...user,
                                 outside_dinning: "1"
                             })
                         }}
@@ -618,8 +695,8 @@ const Resturent = () => {
                     <TouchableOpacity
                         onPress={() => {
                             setOutsideDining(false)
-                            setChangeOrderSetting({
-                                ...changeOrderSetting,
+                            setUser({
+                                ...user,
                                 outside_dinning: "0"
                             })
                         }}
@@ -630,6 +707,7 @@ const Resturent = () => {
                 <TouchableOpacity
                     onPress={() => {
                         setEditOrderSetting(false)
+                        reloadLocal();
                     }}
                     style={{ width: "50%", alignSelf: 'center', marginTop: 20, borderRadius: 8, height: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E85D4A' }}>
                     <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: "#fff" }}>Cancel</Text>
@@ -640,10 +718,10 @@ const Resturent = () => {
     )
 
     const OrderSettingView = () => (
-        <View>
+        <View style={{borderColor: '#E3E3E3', borderRadius: 16, borderWidth: 1, marginTop: 15,overflow:"hidden",paddingBottom:15}}>
             <TouchableOpacity
                 onPress={() => { setEditOrderSetting(true) }}
-                style={{ width: "100%", marginTop: 15, paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 20, paddingHorizontal: 10, backgroundColor: '#FCF5EA', }}>
+                style={{ width: "100%", paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 20, paddingHorizontal: 10, backgroundColor: '#FCF5EA', }}>
                 <Text style={{ fontFamily: 'PSBo', fontSize: 16, color: '#4A5160', }}>Order settings</Text>
                 <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#F58B44' }}>Edit Details</Text>
             </TouchableOpacity>
@@ -653,24 +731,24 @@ const Resturent = () => {
                 <View style={{ flexDirection: 'row', marginTop: 20, }}>
                     <View style={{ width: "50%" }}>
                         <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA' }}>Number floors</Text>
-                        <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{userData?.floors}</Text>
+                        <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{user?.floors}</Text>
                     </View>
                     <View>
                         <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA' }}>Outside Dining</Text>
-                        <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{userData?.outside_dinning == "1" ? "Yes" : "No"}</Text>
+                        <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{user?.outside_dinning == "1" ? "Yes" : "No"}</Text>
                     </View>
                 </View>
                 <View style={{ marginTop: 10 }}>
                     <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA' }}>Waiter Call</Text>
-                    <Text style={{ fontFamily: 'PRe', fontSize: 14, color: '#4A5160', marginTop: 3 }}>{userData?.waiter_call == "1" ? "Waiter Call" : "No"}</Text>
+                    <Text style={{ fontFamily: 'PRe', fontSize: 14, color: '#4A5160', marginTop: 3 }}>{user?.waiter_call == "1" ? "Yes" : "No"}</Text>
                 </View>
             </View>
         </View>
     )
 
     const EditOverViewImagesView = () => (
-        <View>
-            <View style={{ width: "100%", marginTop: 20, paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 20, paddingHorizontal: 10, backgroundColor: '#FCF5EA', borderTopRightRadius: 16, borderTopLeftRadius: 16 }}>
+        <View style={{borderColor: '#E3E3E3', borderRadius: 16, borderWidth: 1, marginTop: 20,paddingBottom:20}}>
+            <View style={{ width: "100%", paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 20, paddingHorizontal: 10, backgroundColor: '#FCF5EA', borderTopRightRadius: 16, borderTopLeftRadius: 16 }}>
                 <Text style={{ fontFamily: 'PSBo', fontSize: 16, color: '#4A5160', }}>Images</Text>
                 <TouchableOpacity
                     onPress={() => { doUploadImgs() }}
@@ -686,7 +764,7 @@ const Resturent = () => {
                     style={{ marginTop: 10, marginLeft: -8 }}
                     showsHorizontalScrollIndicator={false}
                     keyExtractor={keyExtractor}
-                    data={userData.images}
+                    data={user.images}
                     renderItem={({ item }) => (
                         <View style={{ marginLeft: 8, width: 101, height: 101, borderRadius: 8, }}>
                             <Image
@@ -696,7 +774,7 @@ const Resturent = () => {
                             <TouchableOpacity
                                 onPress={() => {
                                     // console.log(item)
-                                    console.log(userData.token)
+                                    console.log(user.token)
                                     Alert.alert(
                                         "Remove Image",
                                         'Are you sure you want to remove this image?',
@@ -754,7 +832,7 @@ const Resturent = () => {
 
                 </View>
                 <TouchableOpacity
-                    onPress={() => { setEditOverViewImages(false) }}
+                    onPress={() => { setEditOverViewImages(false),reloadLocal() }}
                     style={{ width: "50%", alignSelf: 'center', marginTop: 20, height: 44, borderRadius: 8, backgroundColor: '#E85D4A', alignItems: 'center', justifyContent: 'center', marginLeft: 15 }}>
                     <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#fff' }}>Cancel</Text>
                 </TouchableOpacity>
@@ -764,32 +842,43 @@ const Resturent = () => {
 
     const OverViewHoursView = () => (
 
-        <View style={{ marginHorizontal: 10 }}>
+        <View style={{  }}>
             <View style={{ marginTop: 20, width: "100%", borderColor: '#E3E3E3', borderRadius: 16, borderWidth: 1, paddingBottom: 15 }}>
                 <View style={{ width: "100%", paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 20, paddingHorizontal: 10, backgroundColor: '#FCF5EA', borderTopRightRadius: 16, borderTopLeftRadius: 16 }}>
                     <Text style={{ fontFamily: 'PSBo', fontSize: 16, color: '#4A5160', }}>Opening Hours</Text>
                     <TouchableOpacity
-                        onPress={() => { setEditHours(true) }}
+                        onPress={() => { 
+                            if(user?.sameEveryDay==1){
+                                setSameDayEnd(true)
+                                setSameDayStart(user.monday_start ?? "08:00 am");
+                                setSameDayEnd(user.monday_end ?? "06:00 pm");
+                            }
+                            else{
+                                setSameDayEnd(false)
+                            }
+
+                            setEditHours(true);
+                        }}
                     >
                         <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#F58B44' }}>Edit Details</Text>
                     </TouchableOpacity>
                 </View>
 
 
-                <View style={{ width: "95%", flexWrap: 'wrap', }}>
+                <View style={{ width: "95%", flexWrap: 'wrap',marginTop: 15 }}>
                     {
                         daysR.map((v, i) => {
                             return (
-                                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 15, }}>
+                                <View key={i} style={{ flexDirection: 'row', alignItems: 'center',marginBottom:15  }}>
                                     <View style={{ marginLeft: 10, width: 48, height: 48, borderRadius: 24, backgroundColor: v == "Mon" ? "#E85D4A" : '#F58B44', alignItems: 'center', justifyContent: 'center' }}>
                                         <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#FFF', textTransform: 'uppercase' }}>{v.substr(0, 3)}</Text>
                                     </View>
-                                    {userData[v] == "0" ? <Text style={{ fontFamily: 'PRe', fontSize: 14, color: '#E85D4A', marginLeft: 15, alignSelf: 'center' }}>Closed</Text>
+                                    {user[v] == "0" ? <Text style={{ fontFamily: 'PRe', fontSize: 14, color: '#E85D4A', marginLeft: 15, alignSelf: 'center' }}>Closed</Text>
                                         :
                                         <View style={{ flexDirection: 'row', marginLeft: 15 }}>
-                                            <Text style={{ fontFamily: 'PRe', fontSize: 14, color: '#4A5160' }}>{userData[v + "_start"]}</Text>
+                                            <Text style={{ fontFamily: 'PRe', fontSize: 14, color: '#4A5160' }}>{user[v + "_start"]}</Text>
                                             <Text style={{ marginLeft: 10, fontFamily: 'PRe', fontSize: 14, color: '#818CAA', marginHorizontal: 15 }}>To</Text>
-                                            <Text style={{ fontFamily: 'PRe', fontSize: 14, color: '#4A5160' }}>{userData[v + "_end"]}</Text>
+                                            <Text style={{ fontFamily: 'PRe', fontSize: 14, color: '#4A5160' }}>{user[v + "_end"]}</Text>
 
                                         </View>
                                     }
@@ -819,7 +908,7 @@ const Resturent = () => {
             <View style={{ width: "95%", alignSelf: 'center', marginTop: 10, paddingHorizontal: 10, height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#818CAA', alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14 }}>Same Every day</Text>
                 <Switch
-                    trackColor={{ false: "#F58B44", true: "#fff" }}
+                    trackColor={{ false: !sameEveryDay ? "#F58B44" : "#fff", true: sameEveryDay ? "#F58B44" : "#fff" }}
                     thumbColor={sameEveryDay ? "#F58B44" : "#fff"}
                     style={{ borderWidth: sameEveryDay ? 1 : 0, borderColor: '#F58B44' }}
                     ios_backgroundColor="#3e3e3e"
@@ -828,51 +917,121 @@ const Resturent = () => {
                 />
 
             </View>
-            <View style={{ flexDirection: 'row', width: "95%", flexWrap: 'wrap', }}>
-                {
-                    daysR.map((v, i) => {
+            {
+                sameEveryDay ? 
+            <>
+                <View style={{ flexDirection: 'row', width: "95%", flexWrap: 'wrap', }}>
+                    {
+                        daysR.map((v, i) => {
 
-                        return (
-                            <TouchableOpacity
-                                onPress={() => {
-                                    onClick(v)
-                                }}
-                                key={i} style={{ marginTop: 15, marginLeft: 10, width: 50, height: 50, borderRadius: 25, paddingHorizontal: 10, backgroundColor: sameDaysArr.includes(v) ? '#F58B44' : '#E85D4A', alignItems: 'center', justifyContent: 'center' }}>
-                                <Text numberOfLines={1} ellipsizeMode="clip" style={{ fontFamily: 'PSBo', fontSize: 12, color: '#FFF', textTransform: 'uppercase', textAlign: 'center', }}>{v}</Text>
-                            </TouchableOpacity>
-                        )
-                    })
-                }
-            </View>
-            <Text style={{ marginLeft: 10, fontFamily: 'PSBo', fontSize: 14, color: '#818CAA', marginTop: 15, textTransform: 'uppercase' }}>Select time</Text>
-            <View style={{ flexDirection: 'row', marginHorizontal: 10, marginTop: 10, alignItems: 'center' }}>
-                <View style={{ borderWidth: 0.5, width: 90, height: 52, borderRadius: 9, borderColor: '#818CAA', }}>
-                    <TimePicker
-                        selected={{ title: sameDayStart ? sameDayStart : 'Select' }}
-                        data={[{ title: "08:00" }]}
-                        onValueChange={(t) => {
-                            setSameDayStart(t)
-                            console.log(t)
-                        }}
-
-                    />
+                            return (
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        onClick(v)
+                                    }}
+                                    key={i} style={{ marginTop: 15, marginLeft: 10, width: 50, height: 50, borderRadius: 25, paddingHorizontal: 10, backgroundColor: sameDaysArr.includes(v) ? '#F58B44' : '#E85D4A', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Text numberOfLines={1} ellipsizeMode="clip" style={{ fontFamily: 'PSBo', fontSize: 12, color: '#FFF', textTransform: 'uppercase', textAlign: 'center', }}>{v.substr(0,3)}</Text>
+                                </TouchableOpacity>
+                            )
+                        })
+                    }
                 </View>
-                <Text style={{ marginLeft: 10, fontFamily: 'PRe', fontSize: 14, color: '#818CAA', marginHorizontal: 15 }}>To</Text>
+                <Text style={{ marginLeft: 10, fontFamily: 'PSBo', fontSize: 14, color: '#818CAA', marginTop: 15, textTransform: 'uppercase' }}>Select time</Text>
+                <View style={{ flexDirection: 'row', marginHorizontal: 10, marginTop: 10, alignItems: 'center' }}>
+                    <TouchableOpacity 
+                    onPress={()=>{
+                        toTimeIndex=-1;
+                        toTimeIndexStart=true;
+                        setTimetModal(true);
+                    }}
+                    style={{ borderWidth: 0.5, width: 90, height: 52, borderRadius: 9, borderColor: '#818CAA',justifyContent:"center",alignItems:"center" }}>
 
-                <View style={{ borderWidth: 0.5, width: 90, height: 52, borderRadius: 9, borderColor: '#818CAA', }}>
-                    <TimePicker
-                        selected={{ title: sameDayEnd ? sameDayEnd : 'Select' }}
-                        data={[{ title: "08:00" }]}
-                        onValueChange={(t) => {
-                            setSameDayEnd(t)
-                        }}
+                        <Text style={{color:"#818CAA"}}>{sameDayStart}</Text>
 
-                    />
+                    </TouchableOpacity>
+                    <Text style={{ marginLeft: 10, fontFamily: 'PRe', fontSize: 14, color: '#818CAA', marginHorizontal: 15 }}>To</Text>
+
+                    <TouchableOpacity 
+                    onPress={()=>{
+                        toTimeIndex=-1;
+                        toTimeIndexStart=false;
+                        setTimetModal(true);
+                    }}
+                    style={{ borderWidth: 0.5, width: 90, height: 52, borderRadius: 9, borderColor: '#818CAA',justifyContent:"center",alignItems:"center" }}>
+
+                        <Text style={{color:"#818CAA"}}>{sameDayEnd}</Text>
+
+                    </TouchableOpacity>
+
                 </View>
+            </>
+            :
+            <>
+                <View style={{}}>
+                    {
+                        daysR.map((v,i)=>{
+                            return (
+                                <>
+                                    <View style={{flexDirection:"row",alignItems:"center",marginTop: 20}}>
+                                        <Text style={{ marginLeft: 10, fontFamily: 'PSBo', fontSize: 14, color: '#818CAA',  textTransform: 'uppercase' }}>{v}</Text>
+                                        <Switch
+                                            trackColor={{ false: !user[v]==1 ? "#F58B44" : "#fff", true: user[v]==1 ? "#F58B44" : "#fff" }}
+                                            thumbColor={user[v]==1 ? "#F58B44" : "#fff"}
+                                            style={{ borderWidth: user[v]==1 ? 1 : 0, borderColor: '#F58B44' }}
+                                            ios_backgroundColor="#3e3e3e"
+                                            onValueChange={(value)=>{
+                                                var us = user
+                                                us[v] = value ? 1 : 0;
+                                                setUser(us)
+                                                forceUpdate()
+                                            }}
+                                            value={user[v]==1}
+                                        />
+                                    </View>
 
-            </View>
+                                    {
+                                        user[v]==1 && 
+                                    
+                                        <View style={{ flexDirection: 'row', marginHorizontal: 10, marginTop: 10, alignItems: 'center' }}>
+                                            
+                                            <TouchableOpacity 
+                                            onPress={()=>{
+                                                toTimeIndex=i;
+                                                nonIndexedObjectName=v;
+                                                toTimeIndexStart=true;
+                                                setTimetModal(true);
+                                            }}
+                                            style={{ borderWidth: 0.5, width: 90, height: 52, borderRadius: 9, borderColor: '#818CAA',justifyContent:"center",alignItems:"center" }}>
+
+                                                <Text style={{color:"#818CAA"}}>{user[v+"_start"]}</Text>
+
+                                            </TouchableOpacity>
+                                            <Text style={{ marginLeft: 10, fontFamily: 'PRe', fontSize: 14, color: '#818CAA', marginHorizontal: 15 }}>To</Text>
+
+                                            <TouchableOpacity 
+                                            onPress={()=>{
+                                                toTimeIndex=i;
+                                                nonIndexedObjectName=v;
+                                                toTimeIndexStart=false;
+                                                setTimetModal(true);
+                                            }}
+                                            style={{ borderWidth: 0.5, width: 90, height: 52, borderRadius: 9, borderColor: '#818CAA',justifyContent:"center",alignItems:"center" }}>
+
+                                                <Text style={{color:"#818CAA"}}>{user[v+"_end"]}</Text>
+
+                                            </TouchableOpacity>
+                                        </View>
+                                    }
+
+                                </>
+
+                            )
+                        })
+                    }
+                </View>
+            </>}
             <TouchableOpacity
-                onPress={() => { setEditHours(false) }}
+                onPress={() => { setEditHours(false),reloadLocal() }}
                 style={{ width: "50%", alignSelf: 'center', marginTop: 20, height: 44, borderRadius: 8, backgroundColor: '#E85D4A', alignItems: 'center', justifyContent: 'center', marginLeft: 15 }}>
                 <Text style={{ fontFamily: 'PSBo', fontSize: 16, color: '#fff' }}>Cancel</Text>
             </TouchableOpacity>
@@ -882,8 +1041,8 @@ const Resturent = () => {
 
 
     const OverViewImagesView = () => (
-        <View>
-            <View style={{ width: "100%", marginTop: 20, paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 20, paddingHorizontal: 10, backgroundColor: '#FCF5EA', borderTopRightRadius: 16, borderTopLeftRadius: 16 }}>
+        <View style={{borderColor: '#E3E3E3', borderRadius: 16, borderWidth: 1, paddingBottom: 15 ,marginTop: 20,}}>
+            <View style={{ width: "100%",  paddingTop: 15, flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 20, paddingHorizontal: 10, backgroundColor: '#FCF5EA', borderTopRightRadius: 16, borderTopLeftRadius: 16 }}>
                 <Text style={{ fontFamily: 'PSBo', fontSize: 16, color: '#4A5160', }}>Images</Text>
                 <TouchableOpacity
                     onPress={() => { setEditOverViewImages(true) }}
@@ -891,14 +1050,14 @@ const Resturent = () => {
                     <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#F58B44' }}>Edit Images</Text>
                 </TouchableOpacity>
             </View>
-            <View style={{ marginHorizontal: 10 }}>
+            <View style={{ paddingHorizontal:10 }}>
                 {/* <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA', marginTop: 15 }}>Images</Text> */}
                 <FlatList
                     horizontal={true}
                     keyExtractor={keyExtractor}
                     style={{ marginTop: 10, marginLeft: -8 }}
                     showsHorizontalScrollIndicator={false}
-                    data={userData.images}
+                    data={user.images}
                     renderItem={({ item }) => (
                         <View style={{ marginLeft: 8, width: 101, height: 101, borderRadius: 8, }}>
                             <Image
@@ -920,8 +1079,8 @@ const Resturent = () => {
                     <Text style={{ fontFamily: 'PMe', fontSize: 16, color: '#fff' }}>AL</Text>
                 </View>
                 <View style={{ marginLeft: 10, alignSelf: 'center' }}>
-                    <Text style={{ fontFamily: 'PMe', fontSize: 16, color: '#4A5160' }}>{userData?.title}</Text>
-                    <Text style={{ fontFamily: 'PRe', fontSize: 16, color: '#818CAA', }}>{userData?.sub_title}</Text>
+                    <Text style={{ fontFamily: 'PMe', fontSize: 16, color: '#4A5160' }}>{user?.title}</Text>
+                    <Text style={{ fontFamily: 'PRe', fontSize: 16, color: '#818CAA', }}>{user?.sub_title}</Text>
                 </View>
             </View>
             <View style={{ width: "90%", alignSelf: 'center', marginTop: 20 }}>
@@ -941,36 +1100,37 @@ const Resturent = () => {
                         <View style={{ flexDirection: 'row', marginTop: 20, }}>
                             <View style={{ width: "50%" }}>
                                 <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA' }}>Category</Text>
-                                <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{userData?.sub_title}</Text>
+                                <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{user?.sub_title}</Text>
                             </View>
                             <View>
                                 <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA' }}>Phone number</Text>
-                                <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{userData?.phone}</Text>
+                                <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{user?.phone}</Text>
                             </View>
                         </View>
                         <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA', marginTop: 15 }}>Addresses</Text>
-                        <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{userData?.address}</Text>
+                        <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{user?.address}</Text>
 
                         <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA', marginTop: 15 }}>Description</Text>
-                        <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{userData?.description}</Text>
-                        <TouchableOpacity style={{ marginTop: 15, paddingHorizontal: 10, width: "100%", height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#818CAA', alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
-                            <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14 }}>{userData?.sub_title}</Text>
+                        <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14, marginTop: 5 }}>{user?.description}</Text>
+                        {/* <TouchableOpacity style={{ marginTop: 15, paddingHorizontal: 10, width: "100%", height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#818CAA', alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
+                            <Text style={{ color: '#4A5160', fontFamily: 'PRe', fontSize: 14 }}>{user?.sub_title}</Text>
                             <ArrowDown />
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
                     </View>
-                    {
-                        editOverViewImages ? <EditOverViewImagesView />
-                            : <OverViewImagesView />
-
-                    }
-
-
-                    {
-                        editOrderSetting ? <EditOrderSettingView />
-                            :
-                            <OrderSettingView />
-                    }
                 </View>
+                
+                {
+                    editOverViewImages ? <EditOverViewImagesView />
+                        : <OverViewImagesView />
+
+                }
+
+
+                {
+                    editOrderSetting ? <EditOrderSettingView />
+                        :
+                        <OrderSettingView />
+                }
 
                 {
                     editHours ?
@@ -1019,7 +1179,7 @@ const Resturent = () => {
         </View>
     )
 
-    const TableView = ({ item }) => (
+    const TableView = ({ item,index }) => (
         <View style={{ width: "100%", paddingBottom: 0, marginTop: 15, borderWidth: 1, borderRadius: 16, borderColor: '#E3E3E3' }}>
             <View style={{ padding: 10 }}>
                 <View style={{ flexDirection: 'row', marginTop: 5 }}>
@@ -1032,15 +1192,17 @@ const Resturent = () => {
                     </View>
                     <TouchableOpacity
                         onPress={() => {
+                            tableIndex = index;
+                            editingTable = true;
                             setEditTable(true)
-                            setEditTableV({
-                                ...editTableV,
-                                location: item.location,
-                                table_id: item.table_id,
-                                capacity: item.capacity,
-                                title: item.title
-                            })
-                            setEditTableId(item.id)
+                            // setEditTableV({
+                            //     ...editTableV,
+                            //     location: item.location,
+                            //     table_id: item.table_id,
+                            //     capacity: item.capacity,
+                            //     title: item.title
+                            // })
+                            // setEditTableId(item.id)
                         }}
                         style={{ position: 'absolute', right: 15, top: 10, }}>
                         <EditIcon />
@@ -1082,8 +1244,8 @@ const Resturent = () => {
                     <Text style={{ fontFamily: 'PMe', fontSize: 16, color: '#fff' }}>AL</Text>
                 </View>
                 <View style={{ marginLeft: 10, alignSelf: 'center' }}>
-                    <Text style={{ fontFamily: 'PMe', fontSize: 16, color: '#4A5160' }}>{userData?.title}</Text>
-                    <Text style={{ fontFamily: 'PRe', fontSize: 16, color: '#818CAA', }}>{userData?.sub_title}</Text>
+                    <Text style={{ fontFamily: 'PMe', fontSize: 16, color: '#4A5160' }}>{user?.title}</Text>
+                    <Text style={{ fontFamily: 'PRe', fontSize: 16, color: '#818CAA', }}>{user?.sub_title}</Text>
                 </View>
                 <TouchableOpacity
                     onPress={() => { setAddtable(true) }}
@@ -1094,7 +1256,7 @@ const Resturent = () => {
             <View style={{ marginHorizontal: 15 }}>
                 <Text style={{ fontFamily: 'PSBo', fontSize: 18, color: '#4A5160', marginTop: 15 }}>All Tables</Text>
                 <FlatList
-                    data={userData?.tables}
+                    data={user?.tables}
                     keyExtractor={keyExtractor}
                     renderItem={TableView}
                 />
@@ -1112,13 +1274,13 @@ const Resturent = () => {
 
 
 
+    
 
-
-
+    if(user?.token?.length!=32)
+    return <Loader />
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-            <StatusBar hidden={true} />
+        <View style={{ flex: 1, backgroundColor: '#fff' }}>
             <View style={{ zIndex: 1 }}>
                 <DropdownAlert ref={ref => dropDownAlertRef = ref} />
             </View>
@@ -1136,8 +1298,8 @@ const Resturent = () => {
                                         <Text style={{ fontFamily: 'PMe', fontSize: 16, color: '#fff' }}>AL</Text>
                                     </View>
                                     <View style={{ marginLeft: 10, alignSelf: 'center' }}>
-                                        <Text style={{ fontFamily: 'PMe', fontSize: 16, color: '#4A5160' }}>{userData?.title}</Text>
-                                        <Text style={{ fontFamily: 'PRe', fontSize: 16, color: '#818CAA', }}>{userData?.sub_title}</Text>
+                                        <Text style={{ fontFamily: 'PMe', fontSize: 16, color: '#4A5160' }}>{user?.title}</Text>
+                                        <Text style={{ fontFamily: 'PRe', fontSize: 16, color: '#818CAA', }}>{user?.sub_title}</Text>
                                     </View>
                                 </View>
                                 <View style={{ width: "90%", alignSelf: 'center', marginTop: 20 }}>
@@ -1161,11 +1323,11 @@ const Resturent = () => {
                                                     <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA' }}>Category</Text>
                                                     <View style={{ marginTop: 10, width: 152, height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#818CAA', alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' }}>
                                                         <PrivacyPicker
-                                                            data={[{ title: "Cafe", }]}
-                                                            selected={{ title: "Select" }}
+                                                            data={[{ title: "Cafe" },{ title: "Hotel" },{ title: "Restaurant" }]}
+                                                            selected={{ title:  user?.sub_title }}
                                                             onValueChange={(index, title) => {
-                                                                setChangeOverViewSetting({
-                                                                    ...changeOverViewSetting,
+                                                                setUser({
+                                                                    ...user,
                                                                     sub_title: title.title
                                                                 })
                                                             }}
@@ -1177,11 +1339,11 @@ const Resturent = () => {
 
                                                     <TextInput
                                                         style={{ marginTop: 10, paddingHorizontal: 10, width: 152, height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#818CAA', flexDirection: 'row', color: '#4A5160', fontFamily: 'PRe', fontSize: 14 }}
-                                                        placeholder={userData?.phone}
+                                                        value={user?.phone}
                                                         placeholderTextColor="#4A5160"
                                                         onChangeText={(text) => {
-                                                            setChangeOverViewSetting({
-                                                                ...changeOverViewSetting,
+                                                            setUser({
+                                                                ...user,
                                                                 phone: text
                                                             })
                                                         }}
@@ -1191,11 +1353,11 @@ const Resturent = () => {
                                             <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA', marginTop: 15 }}>Addresses</Text>
                                             <TextInput
                                                 style={{ marginTop: 10, paddingHorizontal: 10, color: '#4A5160', fontFamily: 'PRe', fontSize: 14, width: "100%", paddingVertical: 15, borderRadius: 8, borderWidth: 0.5, borderColor: '#F58B44', }}
-                                                placeholder={userData?.address}
+                                                value={user?.address}
                                                 placeholderTextColor="#4A5160"
                                                 onChangeText={(text) => {
-                                                    setChangeOverViewSetting({
-                                                        ...changeOverViewSetting,
+                                                    setUser({
+                                                        ...user,
                                                         address: text
                                                     })
                                                 }}
@@ -1204,18 +1366,18 @@ const Resturent = () => {
                                             <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#818CAA', marginTop: 15 }}>Description</Text>
                                             <TextInput
                                                 style={{ marginTop: 10, paddingHorizontal: 10, width: "100%", paddingVertical: 15, borderRadius: 8, borderWidth: 0.5, borderColor: '#818CAA', flexDirection: 'row', color: '#4A5160', fontFamily: 'PRe', fontSize: 14 }}
-                                                placeholder={userData?.description}
+                                                value={user?.description}
                                                 placeholderTextColor="#4A5160"
                                                 onChangeText={(text) => {
-                                                    setChangeOverViewSetting({
-                                                        ...changeOverViewSetting,
+                                                    setUser({
+                                                        ...user,
                                                         description: text
                                                     })
                                                 }}
 
                                             />
                                             <TouchableOpacity
-                                                onPress={() => { setResEdit(false) }}
+                                                onPress={() => { setResEdit(false),reloadLocal() }}
                                                 style={{ width: "50%", alignSelf: 'center', marginTop: 20, height: 44, borderRadius: 8, backgroundColor: '#E85D4A', alignItems: 'center', justifyContent: 'center', marginLeft: 15 }}>
                                                 <Text style={{ fontFamily: 'PSBo', fontSize: 16, color: '#fff' }}>Cancel</Text>
                                             </TouchableOpacity>
@@ -1284,7 +1446,6 @@ const Resturent = () => {
                                             <Text style={styles.inputLabel}>Name</Text>
                                             <TextInput
                                                 style={styles.addTableInput}
-                                                placeholder="Table 9"
                                                 placeholderTextColor="#4A5160"
                                                 onChangeText={(text) => {
                                                     setAddTableV({
@@ -1299,7 +1460,6 @@ const Resturent = () => {
                                             <Text style={styles.inputLabel}>Table ID</Text>
                                             <TextInput
                                                 style={styles.addTableInput}
-                                                placeholder="#TB109"
                                                 placeholderTextColor="#4A5160"
                                                 onChangeText={(text) => {
                                                     setAddTableV({
@@ -1316,8 +1476,8 @@ const Resturent = () => {
                                             <Text style={styles.inputLabel}>Capacity</Text>
                                             <View style={{ width: "100%", height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#F58B44', marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', }}>
                                                 <PrivacyPicker
-                                                    data={[{ title: "2", }, { title: "3" }, { title: "4" }, { title: "5" }, { title: "6" }, { title: "7" }, { title: "8" }, { title: "9" }, { title: "10" }]}
-                                                    selected={{ title: "Select" }}
+                                                    data={[{ title: "1", },{ title: "2", }, { title: "3" }, { title: "4" }, { title: "5" }, { title: "6" }, { title: "7" }, { title: "8" }, { title: "9" }, { title: "10" }]}
+                                                    selected={{ title: "5" }}
                                                     onValueChange={(index, title) => {
                                                         setAddTableV({
                                                             ...addTableV,
@@ -1332,11 +1492,11 @@ const Resturent = () => {
                                             <TouchableOpacity style={{ width: "100%", height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#818CAA', marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', }}>
                                                 <PrivacyPicker
                                                     data={[{ title: "Outside", }, { title: "Inside" }]}
-                                                    selected={{ title: "Select" }}
+                                                    selected={{ title: addTableV.location==1? "Outside":"Inside" }}
                                                     onValueChange={(index, title) => {
                                                         setAddTableV({
                                                             ...addTableV,
-                                                            location: title.title
+                                                            location: title.title=="Outside" ? 1 : 0
                                                         })
                                                     }}
                                                 />
@@ -1350,7 +1510,7 @@ const Resturent = () => {
                             </View>
                             <View style={{ position: 'absolute', bottom: 0, flexDirection: 'row', width: width, height: 65, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 20 }}>
                                 <TouchableOpacity
-                                    onPress={() => { setAddtable(false) }}
+                                    onPress={() => { setAddtable(false),reloadLocal() }}
                                     style={{ width: 89, height: 44, borderRadius: 8, backgroundColor: '#E85D4A', alignItems: 'center', justifyContent: 'center', marginLeft: 15 }}>
                                     <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#fff' }}>Cancel</Text>
                                 </TouchableOpacity>
@@ -1403,13 +1563,17 @@ const Resturent = () => {
                                             <Text style={styles.inputLabel}>Name</Text>
                                             <TextInput
                                                 style={styles.addTableInput}
-                                                placeholder={editTableV.title}
+                                                value={user?.tables[tableIndex]?.title}
                                                 placeholderTextColor="#4A5160"
                                                 onChangeText={(text) => {
-                                                    setEditTableV({
-                                                        ...editTableV,
-                                                        title: text
-                                                    })
+                                                    var us = user;
+                                                    us.tables[tableIndex].title = text;
+                                                    setUser(us);
+                                                    forceUpdate();
+                                                    // setEditTableV({
+                                                    //     ...editTableV,
+                                                    //     title: text
+                                                    // })
                                                 }}
                                             />
 
@@ -1418,13 +1582,21 @@ const Resturent = () => {
                                             <Text style={styles.inputLabel}>Table ID</Text>
                                             <TextInput
                                                 style={styles.addTableInput}
-                                                placeholder={editTableV.table_id}
+                                                value={user?.tables[tableIndex]?.table_id}
+                                                // placeholder={editTableV.table_id}
                                                 placeholderTextColor="#4A5160"
                                                 onChangeText={(text) => {
-                                                    setEditTableV({
-                                                        ...editTableV,
-                                                        table_id: text
-                                                    })
+
+                                                    
+                                                    var us = user;
+                                                    us.tables[tableIndex].table_id = text;
+                                                    setUser(us);
+                                                    forceUpdate();
+
+                                                    // setEditTableV({
+                                                    //     ...editTableV,
+                                                    //     table_id: text
+                                                    // })
                                                 }}
                                             />
                                         </View>
@@ -1435,13 +1607,21 @@ const Resturent = () => {
                                             <Text style={styles.inputLabel}>Capacity</Text>
                                             <View style={{ width: "100%", height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#F58B44', marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', }}>
                                                 <PrivacyPicker
-                                                    data={[{ title: "2", }, { title: "3" }, { title: "4" }, { title: "5" }, { title: "6" }, { title: "7" }, { title: "8" }, { title: "9" }, { title: "10" }]}
-                                                    selected={{ title: editTableV.capacity }} ƒ
+                                                    data={[{ title: "1" },{ title: "2" }, { title: "3" }, { title: "4" }, { title: "5" }, { title: "6" }, { title: "7" }, { title: "8" }, { title: "9" }, { title: "10" }]}
+                                                    selected={{ title: user?.tables[tableIndex]?.capacity }}
+
                                                     onValueChange={(index, title) => {
-                                                        setEditTableV({
-                                                            ...editTableV,
-                                                            capacity: title.title
-                                                        })
+                                                        
+                                                        var us = user;
+                                                        us.tables[tableIndex].capacity =title.title;
+                                                        setUser(us);
+                                                       
+                                                        forceUpdate();
+                                                        
+                                                        // setEditTableV({
+                                                        //     ...editTableV,
+                                                        //     capacity: title.title
+                                                        // })
                                                     }}
                                                 />
                                             </View>
@@ -1451,11 +1631,22 @@ const Resturent = () => {
                                             <TouchableOpacity style={{ width: "100%", height: 52, borderRadius: 8, borderWidth: 0.5, borderColor: '#818CAA', marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', }}>
                                                 <PrivacyPicker
                                                     data={[{ title: "Outside", }, { title: "Inside" }]}
-                                                    selected={{ title: editTableV.location }} ƒ onValueChange={(index, title) => {
-                                                        setEditTableV({
-                                                            ...editTableV,
-                                                            location: title.title
-                                                        })
+                                                    selected={{ title: user?.tables[tableIndex]?.location==1?"Outside":"Inside" }} 
+                                                    onValueChange={(index, title) => {
+
+
+
+                                                        var us = user;
+                                                        us.tables[tableIndex].capacity = title.title=="Outside"?1:0;
+                                                        setUser(us);
+                                                       
+                                                        forceUpdate();
+
+
+                                                        // setEditTableV({
+                                                        //     ...editTableV,
+                                                        //     location: title.title
+                                                        // })
                                                     }}
                                                 />
                                             </TouchableOpacity>
@@ -1468,7 +1659,7 @@ const Resturent = () => {
                             </View>
                             <View style={{ position: 'absolute', bottom: 0, flexDirection: 'row', width: width, height: 65, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 20 }}>
                                 <TouchableOpacity
-                                    onPress={() => { setEditTable(false) }}
+                                    onPress={() => { setEditTable(false),reloadLocal() }}
                                     style={{ width: 89, height: 44, borderRadius: 8, backgroundColor: '#E85D4A', alignItems: 'center', justifyContent: 'center', marginLeft: 15 }}>
                                     <Text style={{ fontFamily: 'PSBo', fontSize: 14, color: '#fff' }}>Cancel</Text>
                                 </TouchableOpacity>
@@ -1485,8 +1676,78 @@ const Resturent = () => {
 
             </ScrollView>
 
+            {
+              timeModal?
+            
+            <View style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              width: "100%"
+            }}>
 
-        </SafeAreaView>
+
+              
+
+              <View style={{ width: "100%" }}>
+                {Platform.OS=="ios" && 
+                <View style={{flexDirection:"row",justifyContent:"space-between",backgroundColor:"#fff",paddingVertical:5,paddingHorizontal:20}}>
+                  <Text onPress={()=>{
+                  }} style={{color:"grey"}}></Text>
+                  <Text onPress={()=>{
+                    setTimetModal(false);
+                  }} style={{color:"blue"}}>Confirm</Text>
+                </View>
+                }
+                <DateTimePicker
+                  testID="dateTimePicker"
+                  style={{backgroundColor:"#fff"}}
+                  value={x}
+                  mode={"time"}
+                  
+                  is24Hour={true}
+                  display={Platform.OS === 'ios' ? "spinner" : "default"}
+                  onChange={(d,date) => {
+                    setTimetModal(false)
+                    if(d.type=="set")
+                    {
+                        if(toTimeIndex==-1)
+                        {
+                            if(toTimeIndexStart)
+                            {
+                                setSameDayStart(formatTime(date))
+                            }
+                            else{
+                                setSameDayEnd(formatTime(date))
+                            }
+                        }
+                        else{
+                            var us = user
+                            if(toTimeIndexStart)
+                            {
+                                us[nonIndexedObjectName+"_start"] = formatTime(date)
+                            }
+                            else{
+                                us[nonIndexedObjectName+"_end"] = formatTime(date)
+                            }
+                            setUser(us)
+                            
+                        }
+                        setTimeout(()=>{
+                            forceUpdate()
+                        },500)
+                    }
+                      
+
+                    // this.setState({ date_time_show2:Platform.OS!="android" , dateTimeTemp:date, f_time:this.formatTime(date)});
+                   
+                    
+                  }}
+                />
+              </View>
+            </View>:null}
+        </View>
     )
 }
 

@@ -245,7 +245,7 @@ const QRCode = (props) => {
     else if (scanMenu) return <ScanMenuView />
     else return (
         <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-            <StatusBar hidden={true} />
+            <StatusBar hidden={false} />
             <Header />
             <ScrollView contentContainerStyle={{ paddingBottom: 100 }} >
                 <View style={{ width: "92%", alignSelf: 'center', marginTop: 15, }}>

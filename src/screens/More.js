@@ -38,7 +38,7 @@ const More = (props) => {
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-            <StatusBar hidden={true} />
+            <StatusBar hidden={false} />
             <Header />
             <View style={{ width: "95%", alignSelf: 'center', marginTop: 10 }}>
                 <TouchableOpacity

@@ -5,8 +5,10 @@ import DropdownAlert from 'react-native-dropdownalert';
 import { EyeOff } from '../components/Svgs';
 import { apiRequest, doPost } from "../utils/apiCalls";
 import Loader from '../utils/Loader';
-import { storeItem } from "../utils/functions";
+import { storeItem,retrieveItem,validateEmail } from "../utils/functions";
 import { Context } from '../Context/DataContext';
+import { urls } from '../utils/Api_urls';
+import { changeLoggedIn } from '../../Common';
 
 
 
@@ -27,40 +29,61 @@ const Login = (props) => {
 
     async function login() {
 
+        if(!validateEmail(email))
+        {
+            dropDownAlertRef.alertWithType("error","Error","Please provide a valid email");
+            return
+        }
+        if(password.length<8)
+        {
+            dropDownAlertRef.alertWithType("error","Error","Please provide a valid password");
+            return
+        }
+
 
         var x = dropDownAlertRef;
         setLoading(true)
-        const loginData = { email: email, password: password }
-        apiRequest(loginData, "login")
-            .then(data => {
-                if (data.action == 'success') {
-                    setLoading(false)
-                    storeItem("login_data", data.data)
-                        .then((v) => {
-                            setLogindataGlobal()
-                            props.navigation.navigate('BottomTabNavigator');
-                        })
-                }
-                else {
-                    setLoading(false)
-                    x.alertWithType("error", "Error", data.error);
-                }
-            })
-            .catch(error => {
-                x.alertWithType("error", "Error", "Internet");
-            })
+        const dbData = { email: email, password: password }
+       
+
+        console.log(" I request @ "+urls.API+"login");
+        console.log(dbData);
+        const {isError,data} = await doPost(dbData,"login");
+        console.log(data);
+        if(isError)
+        {
+            setLoading(false)
+            dropDownAlertRef.alertWithType("error",urls.error_title,urls.error);
+        }
+        else{
+            if (data.action == "success") {
+                storeItem("login_data",data.data).then((v)=>{
+                    setTimeout(()=>{
+                        setLoading(false)
+                        changeLoggedIn.changeNow(1)
+                    },500)
+                })
+                
+            }
+            else{
+                setLoading(false)
+                dropDownAlertRef.alertWithType("error","Error",data.error); 
+            }
+        }
 
     }
 
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
+        <View style={{backgroundColor: 'white',flex:1}}>
+       
             <View style={{ zIndex: 1 }}>
                 <DropdownAlert ref={ref => dropDownAlertRef = ref} />
             </View>
             {loading && <Loader />}
-            <StatusBar hidden={true} />
-            <View style={{ paddingHorizontal: "10%", width: "100%", marginTop: 20 }}>
+            <StatusBar hidden={false} />
+            <SafeAreaView style={{ paddingTop:100 }}>
+            <View style={{  paddingHorizontal: "10%", width: "100%", marginTop: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 20 }}>
                     <Text style={{ fontFamily: 'PBo', fontSize: 26, color: '#F58B44', marginHorizontal: 10 }}>Sign In</Text>
                 </View>
@@ -68,7 +91,9 @@ const Login = (props) => {
 
                     <TextInput
                         placeholder="Email"
+                        autoCapitalize={"none"}
                         // value="cafe@gmail.com"
+                        value={email}
                         onChangeText={setEmail}
                         style={{
                             color: '#818CAA',
@@ -82,6 +107,7 @@ const Login = (props) => {
                         placeholder="Password"
                         // value="12345678"
                         onChangeText={setPassword}
+                        value={password}
                         secureTextEntry={showHide}
                         style={{
                             color: '#818CAA',
@@ -93,7 +119,7 @@ const Login = (props) => {
                         onPress={() => {
                             setShowHide(!showHide)
                         }}
-                        style={{ position: 'absolute', right: 0, padding: 20 }}>
+                        style={{ position: 'absolute', right: 0, padding: 15 }}>
                         <EyeOff />
                     </TouchableOpacity>
                 </View>
@@ -105,30 +131,24 @@ const Login = (props) => {
                     style={{ width: "50%", height: 50, borderRadius: 8, backgroundColor: '#F58B44', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 20 }}>
                     <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: 'PSBo' }}>Login</Text>
                 </TouchableOpacity>
-                {/* <TouchableOpacity
-                    onPress={() => props.navigation.navigate('SignUp')}
-                    style={{ padding: 10, marginTop: 10 }} >
-                    <Text style={{ color: '#6D6D6D', fontSize: 16, fontFamily: 'LR', alignSelf: 'center', }}>Don't have an account?
-                        <Text style={{ textDecorationLine: 'underline' }}> Sign Up</Text>
-                    </Text>
-                </TouchableOpacity> */}
+               
             </View>
 
 
 
-        </SafeAreaView>
+            </SafeAreaView>
+            </View>
     )
 }
 
 const styles = StyleSheet.create({
     textInputView: {
         width: "100%",
-        height: 54,
         backgroundColor: '#F3F3F3',
         borderRadius: 9,
         paddingLeft: 15,
-        paddingTop: 10,
         marginTop: 10,
+        paddingVertical:10
     },
 
 })
